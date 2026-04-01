@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "code-review-graph": {
+      "command": "uv",
+      "args": ["run", "--directory", "./code-review-graph", "code-review-graph", "serve"],
+      "description": "Knowledge graph MCP server for token-efficient code reviews of EAOS codebase"
+    }
+  }
+}
