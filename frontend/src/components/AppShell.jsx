@@ -11,6 +11,7 @@ const NAV_ITEMS = [
 
 export function AppShell({ children }) {
   const location = useLocation();
+  const currentLabel = NAV_ITEMS.find((item) => item.to === location.pathname)?.label || "Workspace";
 
   return (
     <div className="shell">
@@ -21,7 +22,7 @@ export function AppShell({ children }) {
           </div>
           <div>
             <p className="brand-title">EAOS</p>
-            <p className="brand-subtitle">Email Automation</p>
+            <p className="brand-subtitle">Email operations workspace</p>
           </div>
         </div>
 
@@ -43,28 +44,20 @@ export function AppShell({ children }) {
         </nav>
 
         <div className="sidebar-footer">
-          <div className="status-card">
-            <span className="status-dot" />
+          <div className="status-card subtle-card">
             <div>
-              <strong>Auto reply watch on</strong>
-              <small>Inbox polling keeps new replies visible for approval.</small>
+              <strong>Auto sync active</strong>
+              <small>Replies are monitored in the background.</small>
             </div>
           </div>
         </div>
       </aside>
 
       <div className="main-column">
-        <header className="mobile-topbar">
-          <div className="mobile-brand">
-            <div className="brand-mark brand-mark-small">
-              <Icon name="spark" className="icon-small" />
-            </div>
-            <div>
-              <p className="brand-title">EAOS</p>
-              <p className="brand-subtitle">
-                {NAV_ITEMS.find((item) => item.to === location.pathname)?.label || "Workspace"}
-              </p>
-            </div>
+        <header className="topbar">
+          <div className="topbar-title">
+            <span className="topbar-section">{currentLabel}</span>
+            <small>Focused workspace for outreach and reply operations</small>
           </div>
         </header>
         <main className="page-frame">{children}</main>

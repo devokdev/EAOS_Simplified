@@ -33,6 +33,7 @@ class SingleSendRequest(BaseModel):
 class LogEntryOut(BaseModel):
     id: str
     dataset_id: Optional[str] = None
+    dataset_name: str = ""
     contact_id: Optional[str] = None
     contact_name: str = ""
     recipient_email: str = ""
@@ -49,3 +50,4 @@ class LogEntryOut(BaseModel):
     reply_suggestion: str = ""
     last_interaction_time: datetime
     needs_attention: bool = False
+    thread_key: str = ""

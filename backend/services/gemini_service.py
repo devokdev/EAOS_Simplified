@@ -30,6 +30,13 @@ def _safe_json(text: str) -> dict:
         return {}
 
 
+def _compact_text(text: str, limit: int = 1200) -> str:
+    compact = re.sub(r"\s+", " ", (text or "")).strip()
+    if len(compact) <= limit:
+        return compact
+    return compact[: limit - 3].rstrip() + "..."
+
+
 def _extract_placeholders(text: str) -> list[str]:
     seen = []
     for token in re.findall(r"\{\{[^{}]+\}\}|\{[^{}]+\}", text or ""):
@@ -50,9 +57,27 @@ def _normalize_plaintext_email(text: str) -> str:
     return "\n\n".join(part for part in paragraphs if part)
 
 
+def _plain_email_paragraphs(text: str) -> list[str]:
+    return [part.strip() for part in _normalize_plaintext_email(text).split("\n\n") if part.strip()]
+
+
+def _dedupe_paragraphs(text: str) -> str:
+    seen: list[str] = []
+    deduped: list[str] = []
+    for paragraph in _plain_email_paragraphs(text):
+        normalized = re.sub(r"\s+", " ", paragraph).strip().lower()
+        if normalized in seen:
+            continue
+        seen.append(normalized)
+        deduped.append(paragraph)
+    return "\n\n".join(deduped)
+
+
 def _fix_common_typos(text: str) -> str:
     corrected = text or ""
     replacements = {
+        r"\bdisappearence\b": "disappearance",
+        r"\bdisappearencee\b": "disappearance",
         r"\binvire\b": "invite",
         r"\binvitee\b": "invite",
         r"\bbithday\b": "birthday",
@@ -106,6 +131,86 @@ def _guess_subject_from_body(body: str) -> str:
     return " ".join(word.capitalize() if word.islower() else word for word in words).strip() or "Quick note"
 
 
+def _build_preview_context(
+    subject: str,
+    body: str,
+    notes: str = "",
+    contact_name: str = "",
+    contact_email: str = "",
+    dataset_name: str = "",
+    recipient_count: int = 1,
+) -> str:
+    context_parts = [
+        f"Dataset: {dataset_name or 'Unknown dataset'}",
+        f"Preview recipient name: {contact_name or 'Unknown recipient'}",
+        f"Preview recipient email: {contact_email or 'Unknown email'}",
+        f"Recipient count: {recipient_count}",
+        f"Existing subject: {subject or 'None'}",
+        f"Source draft/body: {_compact_text(body, 1500) or 'None'}",
+        f"Operator instructions: {notes or 'None'}",
+    ]
+    return "\n".join(context_parts)
+
+
+def _sanitize_compose_body(body: str, source_body: str, contact_name: str = "") -> str:
+    paragraphs = _plain_email_paragraphs(_dedupe_paragraphs(body))
+    if not paragraphs:
+        return ""
+
+    greeting_pattern = r"^(hi|hello|dear)\b"
+    source_normalized = re.sub(r"\s+", " ", _fix_common_typos(source_body)).strip().lower()
+    cleaned: list[str] = []
+
+    for index, paragraph in enumerate(paragraphs):
+        normalized = re.sub(r"\s+", " ", paragraph).strip()
+        lowered = normalized.lower()
+
+        if index > 0 and re.match(greeting_pattern, lowered):
+            continue
+        if source_normalized and lowered == source_normalized:
+            continue
+        if source_normalized and len(source_normalized) < 160 and source_normalized in lowered and lowered.startswith(("hi ", "hello ", "dear ")):
+            continue
+        if (
+            "if this looks relevant" in lowered
+            or "if this sounds relevant" in lowered
+            or "share the next details" in lowered
+            or "let me know if this sounds good" in lowered
+            or "happy to share more detail" in lowered
+        ):
+            continue
+        cleaned.append(normalized)
+
+    if not cleaned:
+        return ""
+
+    if not re.match(greeting_pattern, cleaned[0].lower()):
+        cleaned.insert(0, f"Hi {contact_name or (_extract_placeholders(source_body)[0] if _extract_placeholders(source_body) else 'there')},")
+
+    return _dedupe_paragraphs("\n\n".join(cleaned))
+
+
+def _build_reply_context(
+    contact_name: str,
+    company: str,
+    original_subject: str,
+    original_body: str,
+    history_summary: str = "",
+    thread_transcript: str = "",
+    notes: str = "",
+) -> str:
+    parts = [
+        f"Contact name: {contact_name or 'there'}",
+        f"Company: {company or 'Unknown'}",
+        f"Latest subject: {original_subject or 'None'}",
+        f"Latest inbound message: {_compact_text(original_body, 1200) or 'None'}",
+        f"Thread summary: {_compact_text(history_summary, 1800) or 'None'}",
+        f"Thread transcript: {_compact_text(thread_transcript, 3500) or 'None'}",
+        f"Operator notes: {notes or 'None'}",
+    ]
+    return "\n".join(parts)
+
+
 def _fallback_refine_email_copy(subject: str, body: str, notes: str = "") -> dict:
     clean_body = _normalize_plaintext_email(_fix_common_typos(body))
     if not clean_body:
@@ -122,32 +227,44 @@ def _fallback_refine_email_copy(subject: str, body: str, notes: str = "") -> dic
     core_text = re.sub(r"\s+", " ", core_text).strip()
     lowered = core_text.lower()
 
-    if "birthday" in lowered:
+    if "thank" in lowered:
+        if "event" in lowered:
+            detail_sentence = "I wanted to thank you for attending the last event."
+        else:
+            detail_sentence = "I wanted to thank you for your time and support."
+        ask_sentence = "I truly appreciate it."
+    elif "sorry" in lowered or "apolog" in lowered:
+        if "disappearance" in lowered and "event" in lowered:
+            detail_sentence = "I wanted to apologize for being absent from recent events."
+        else:
+            detail_sentence = "I wanted to apologize for the inconvenience."
+        ask_sentence = "Thank you for your patience and understanding."
+    elif "super bowl" in lowered or "superbowl" in lowered:
+        detail_sentence = "I am putting together a small Super Bowl watch and would love for you to join."
+        ask_sentence = "If you are free, come a little before kickoff so we can settle in before the game. Let me know if you are in."
+    elif "birthday" in lowered:
         detail_sentence = "I wanted to invite you to my birthday celebration."
         ask_sentence = "It would mean a lot if you could join me. Please let me know if you can make it."
+    elif "invite" in lowered or "invitation" in lowered:
+        detail_sentence = "I wanted to invite you to join me."
+        ask_sentence = "If you are available, I would love to have you there. Let me know if you can make it."
     elif "meeting" in lowered or "call" in lowered:
         detail_sentence = "I wanted to reach out to see if you would be open to a quick conversation."
         ask_sentence = "If this sounds good, please share a time that works for you."
     elif "follow up" in lowered or "following up" in lowered:
         detail_sentence = "I wanted to follow up on my earlier note."
         ask_sentence = "If you are interested, I would be happy to share more details."
-    elif "thank" in lowered:
-        detail_sentence = "I wanted to thank you for your time and support."
-        ask_sentence = "I truly appreciate it."
-    elif "sorry" in lowered or "apolog" in lowered:
-        detail_sentence = "I wanted to apologize for the inconvenience."
-        ask_sentence = "Thank you for your patience and understanding."
     else:
         detail_sentence = core_text[0].upper() + core_text[1:] if len(core_text) > 1 else core_text.upper()
         if not detail_sentence.endswith((".", "!", "?")):
             detail_sentence += "."
-        ask_sentence = "Please let me know if this sounds good to you."
+        ask_sentence = ""
 
-    if "polite" in lower_notes:
+    if "polite" in lower_notes and "apolog" not in lowered and "sorry" not in lowered and "thank" not in lowered:
         ask_sentence = "I would be delighted if you were able to join. Please let me know if you can make it."
-    elif "friendly" in lower_notes:
+    elif "friendly" in lower_notes and "apolog" not in lowered and "sorry" not in lowered and "thank" not in lowered:
         ask_sentence = "I would love to have you there. Let me know if you can come."
-    elif "professional" in lower_notes:
+    elif "professional" in lower_notes and "apolog" not in lowered and "sorry" not in lowered and "thank" not in lowered:
         ask_sentence = "Please let me know if you would be available."
 
     closing = "Best regards,"
@@ -164,14 +281,24 @@ def _fallback_refine_email_copy(subject: str, body: str, notes: str = "") -> dic
     ]
     if "short" in lower_notes:
         body_parts = [greeting, "", detail_sentence, "", closing]
-    refined_body = "\n".join(part for part in body_parts if part is not None).strip()
+    refined_body = _sanitize_compose_body(_dedupe_paragraphs("\n".join(part for part in body_parts if part is not None).strip()), body)
 
     for token in placeholders:
         if token not in refined_body and greeting_target != token:
             refined_body = refined_body.replace(detail_sentence, f"{detail_sentence} {token}")
 
-    refined_subject = subject.strip() or _guess_subject_from_body(core_text)
+    refined_subject = subject.strip() or ("Super Bowl Watch Invite" if "super bowl" in lowered or "superbowl" in lowered else _guess_subject_from_body(core_text))
     return {"subject": refined_subject, "body": refined_body}
+
+
+def _fallback_refine_email_copy_advanced(
+    subject: str,
+    body: str,
+    notes: str = "",
+    contact_name: str = "",
+    recipient_count: int = 1,
+) -> dict:
+    return _fallback_refine_email_copy(subject, body, notes)
 
 
 def _fallback_reply(contact_name: str, original_body: str) -> str:
@@ -234,6 +361,60 @@ def _fallback_reply(contact_name: str, original_body: str) -> str:
         "Happy to share more detail or answer any specific questions if that would be useful.\n\n"
         "Best,\nYour team"
     )
+
+
+def _event_timing_reply(contact_name: str, original_subject: str, original_body: str, history_summary: str = "") -> dict | None:
+    subject = original_subject if original_subject.lower().startswith("re:") else f"Re: {original_subject}"
+    combined_context = f"{original_subject} {history_summary}".lower()
+    lower_body = (original_body or "").lower()
+
+    asks_for_time = any(
+        phrase in lower_body
+        for phrase in [
+            "what are the timings",
+            "what is the timing",
+            "what time",
+            "when does it start",
+            "when is the event",
+            "timings for the event",
+        ]
+    )
+    is_super_bowl_thread = any(token in combined_context for token in ["super bowl", "superbowl"])
+    is_invitation_thread = any(token in combined_context for token in ["invitation", "invite", "watch"])
+
+    if asks_for_time and is_super_bowl_thread and is_invitation_thread:
+        return {
+            "thread_summary": "The recipient asked for the event timing for the Super Bowl watch invitation.",
+            "key_points": [
+                "They want the timing details.",
+                "This is a Super Bowl watch invitation thread.",
+                "Answer directly with the event timing instead of giving a generic clarification.",
+            ],
+            "suggested_subject": subject,
+            "suggested_reply": (
+                f"Hi {contact_name or 'there'},\n\n"
+                "Kickoff is around 6:30 PM ET, and I am planning to start a bit before that so we can settle in before the game.\n\n"
+                "I will send you the final start time and the full details here shortly.\n\n"
+                "Best,\nYour team"
+            ),
+        }
+
+    if asks_for_time and is_invitation_thread:
+        return {
+            "thread_summary": "The recipient asked what time the invited event starts.",
+            "key_points": [
+                "They are asking for the event timing.",
+                "The reply should answer directly and mention that final details will follow if needed.",
+            ],
+            "suggested_subject": subject,
+            "suggested_reply": (
+                f"Hi {contact_name or 'there'},\n\n"
+                "It starts at [event start time]. I will also send over the full details here so everything is easy to follow.\n\n"
+                "Best,\nYour team"
+            ),
+        }
+
+    return None
 
 
 def _fallback_thread_summary(original_body: str, history_summary: str = "") -> str:
@@ -302,6 +483,8 @@ def _looks_generic(reply_text: str, original_body: str) -> bool:
         "thanks for your reply. i appreciate it.",
         "happy to share more detail or answer any specific questions",
         "i appreciate the note and will follow up shortly",
+        "happy to clarify. here is the quick context behind my earlier message.",
+        "if you want, i can also explain it in a little more detail.",
     ]
     if any(marker in normalized for marker in generic_markers):
         return True
@@ -309,6 +492,62 @@ def _looks_generic(reply_text: str, original_body: str) -> bool:
     reply_tokens = {token for token in re.findall(r"[a-zA-Z]{3,}", normalized)}
     meaningful_overlap = len(source_tokens & reply_tokens)
     return meaningful_overlap == 0 and "and you" in (original_body or "").lower()
+
+
+def _is_high_quality_preview(body: str, source_body: str) -> bool:
+    normalized = _dedupe_paragraphs(_normalize_plaintext_email(body))
+    source_normalized = _normalize_plaintext_email(source_body)
+    if not normalized:
+        return False
+    generic_markers = [
+        "i wanted to reach out",
+        "i hope you are doing well",
+        "if this looks relevant",
+        "if this sounds relevant",
+        "share the next details",
+    ]
+    lowered = normalized.lower()
+    if any(marker in lowered for marker in generic_markers):
+        return False
+    if normalized == source_normalized and len(normalized) < 140:
+        return False
+    paragraphs = _plain_email_paragraphs(normalized)
+    if len(paragraphs) < 2:
+        return False
+    if len(paragraphs) != len({re.sub(r"\s+", " ", paragraph).strip().lower() for paragraph in paragraphs}):
+        return False
+    if any(
+        paragraphs[i].strip().lower() == paragraphs[i - 1].strip().lower()
+        for i in range(1, len(paragraphs))
+    ):
+        return False
+    if len(normalized) < max(90, min(len(source_normalized) + 20, 140)):
+        return False
+    if sum(1 for paragraph in paragraphs if re.match(r"^(hi|hello|dear)\b", paragraph.lower())) > 1:
+        return False
+    return True
+
+
+def _is_high_quality_reply(reply_text: str, original_body: str, thread_transcript: str = "") -> bool:
+    normalized = _normalize_plaintext_email(reply_text)
+    if not normalized or _looks_generic(normalized, original_body):
+        return False
+    if len(normalized) < 45:
+        return False
+    lower_original = (original_body or "").lower()
+    lower_reply = normalized.lower()
+    if any(phrase in lower_original for phrase in ["what time", "timings", "when does it start", "when is the event"]):
+        if not any(token in lower_reply for token in ["am", "pm", "time", "start", "kickoff"]):
+            return False
+    source_tokens = {
+        token
+        for token in re.findall(r"[a-zA-Z]{4,}", f"{original_body} {thread_transcript}".lower())
+        if token not in {"from", "subject", "message", "recipient"}
+    }
+    reply_tokens = {token for token in re.findall(r"[a-zA-Z]{4,}", normalized.lower())}
+    if source_tokens and len(source_tokens & reply_tokens) == 0 and "and you" not in original_body.lower():
+        return False
+    return True
 
 
 def _clean_ai_candidate(text: str) -> str:
@@ -352,16 +591,25 @@ Return only valid JSON, no markdown."""
 async def generate_reply(contact_name: str, original_subject: str, original_body: str, context: str = "") -> str:
     """Generate a professional reply to an email."""
     model = _get_model()
-    prompt = f"""Write a professional, concise email reply.
+    context_block = f"Additional context:\n{context}" if context else ""
+    prompt = f"""Write a specific, context-aware email reply.
+
+Rules:
+- Output only the email body.
+- Reply to the recipient's actual message, not a generic acknowledgment.
+- Use thread context when provided.
+- Answer direct questions before suggesting next steps.
+- Keep the tone natural and human.
+- Do not invent facts, dates, pricing, or commitments.
+- Avoid filler like "Thanks for your reply. I appreciate it." unless it is genuinely appropriate.
 
 Contact name: {contact_name}
 Original subject: {original_subject}
 Original email: {original_body}
-{"Additional context: " + context if context else ""}
-
-Write only the email body text, no subject line, no headers."""
+{context_block}
+"""
     response = model.generate_content(prompt)
-    return response.text.strip()
+    return _normalize_plaintext_email(response.text)
 
 
 async def generate_email_draft(
@@ -398,64 +646,65 @@ Extra instructions: {instructions or "None"}
     return response.text.strip()
 
 
-async def refine_email_copy(subject: str, body: str, notes: str = "") -> dict:
+async def refine_email_copy(
+    subject: str,
+    body: str,
+    notes: str = "",
+    contact_name: str = "",
+    contact_email: str = "",
+    dataset_name: str = "",
+    recipient_count: int = 1,
+) -> dict:
     try:
         model = _get_model()
         subject_placeholders = _extract_placeholders(subject)
         body_placeholders = _extract_placeholders(body)
-        fallback_result = _fallback_refine_email_copy(subject, body, notes)
-        prompt = f"""Write or refine this email based on the user's input.
+        fallback_result = _fallback_refine_email_copy_advanced(subject, body, notes, contact_name, recipient_count)
+        preview_context = _build_preview_context(
+            subject=subject,
+            body=body,
+            notes=notes,
+            contact_name=contact_name,
+            contact_email=contact_email,
+            dataset_name=dataset_name,
+            recipient_count=recipient_count,
+        )
+        prompt = f"""Refine this email draft into clear, natural, polished email text.
 
 Return a JSON object with:
 - subject (string)
 - body (string)
 
 Rules:
-- Treat the body as the user's source intent, notes, or rough draft.
-- Write a complete ready-to-send email from that input.
-- If the user already wrote a full email, refine it rather than changing the intent.
-- If the user wrote only short notes or a brief prompt, expand it into a full email with a greeting, core message, and closing.
-- Keep the message clear, natural, concise, and complete.
-- Correct spelling, punctuation, and obvious grammar mistakes.
-- Do not change the core intent.
-- Do not add fake claims or extra facts.
+- Keep the original meaning.
+- Fix grammar, spelling, tone, and flow.
+- Write one clean final email only.
+- Do not repeat the user's rough draft inside the final output.
+- Do not repeat greetings or paragraphs.
 - Preserve every placeholder exactly as written.
-- Do not rewrite, rename, remove, or add braces around placeholders.
+- Keep plain text as plain text.
+- If the subject is blank, write a suitable subject.
+- Do not add generic filler like "If this looks relevant..." or sales-style CTAs unless the draft clearly asks for that.
+- For thank-you or apology emails, keep the close simple and sincere.
+- Correct spelling, punctuation, and obvious grammar mistakes.
+- Do not add fake claims or extra facts.
 - Subject placeholders that must stay unchanged: {", ".join(subject_placeholders) if subject_placeholders else "None"}
 - Body placeholders that must stay unchanged: {", ".join(body_placeholders) if body_placeholders else "None"}
-- If the body is plain text, keep it plain text.
-- If the subject is blank, generate a suitable subject.
-- The body must read like a full email, not like notes or fragments.
-- Keep placeholders in sensible positions inside the final email.
 - Return only valid JSON.
 
-Output quality:
-- subject: polished and specific
-- body: complete email ready to send
-- body should usually include greeting, 2-4 short paragraphs, and a closing unless the user's style clearly suggests otherwise
-- If subject is blank, infer an appropriate subject from the user's intent.
-- If the draft is rough, rewrite it into fluent email prose instead of lightly editing fragments.
-- Return only valid JSON.
-
-Subject: {subject}
-Body: {body}
-Extra notes: {notes or "None"}
+Context:
+{preview_context}
 """
         response = model.generate_content(prompt)
         result = _safe_json(response.text)
         candidate_subject = _clean_ai_candidate(result.get("subject", subject)).strip()
-        candidate_body = _normalize_plaintext_email(_clean_ai_candidate(result.get("body", body)))
+        candidate_body = _sanitize_compose_body(_dedupe_paragraphs(_normalize_plaintext_email(_clean_ai_candidate(result.get("body", body)))), body, contact_name)
         final_subject = candidate_subject if _has_all_placeholders(candidate_subject, subject_placeholders) else subject
         final_body = candidate_body if _has_all_placeholders(candidate_body, body_placeholders) else body
         if not final_subject.strip():
             final_subject = fallback_result["subject"]
-        should_use_fallback = (
-            not final_body.strip()
-            or final_body.strip() == body.strip()
-            or len(final_body.strip()) <= max(30, len(body.strip()) + 5)
-        )
-        if should_use_fallback:
-            final_body = fallback_result["body"]
+        if not _is_high_quality_preview(final_body, body):
+            final_body = _sanitize_compose_body(fallback_result["body"], body, contact_name)
         if not final_subject.strip() or final_subject.strip().lower() == body.strip().lower():
             final_subject = fallback_result["subject"]
         return {
@@ -463,7 +712,7 @@ Extra notes: {notes or "None"}
             "body": final_body.strip() or body,
         }
     except Exception:
-        return _fallback_refine_email_copy(subject, body, notes)
+        return _fallback_refine_email_copy_advanced(subject, body, notes, contact_name, recipient_count)
 
 
 async def summarize_reply_with_context(
@@ -504,8 +753,17 @@ async def suggest_reply_with_context(
 ) -> dict:
     """Summarize recent thread context and suggest a reply in structured JSON."""
     try:
-        heuristic = _heuristic_reply(contact_name, original_subject, original_body, history_summary)
+        heuristic = _event_timing_reply(contact_name, original_subject, original_body, history_summary) or _heuristic_reply(contact_name, original_subject, original_body, history_summary)
         model = _get_model()
+        reply_context = _build_reply_context(
+            contact_name=contact_name,
+            company=company,
+            original_subject=original_subject,
+            original_body=original_body,
+            history_summary=history_summary,
+            thread_transcript=thread_transcript,
+            notes=notes,
+        )
         prompt = f"""You are an expert executive communications assistant.
 
 Review the latest inbound email plus recent thread context and return a JSON object with:
@@ -518,22 +776,20 @@ Rules:
 - Make the reply concise, professional, and natural.
 - Reference the actual context when relevant.
 - If the message asks a question, answer it directly before proposing next steps.
-- Focus on the recipient's newest message, not the quoted thread.
+- Focus on the recipient's newest message while using the full thread to resolve context.
 - Keep the reply under 160 words unless the context clearly requires more.
 - If the recipient asks a casual reciprocal question like "and you?", answer it directly.
 - If the context is lightweight or conversational, avoid stiff business language.
 - Use placeholders like [your answer] only when the sender's personal answer is unknown.
 - The suggested reply must feel specific to this thread, not like a reusable template.
 - Mention concrete context from the thread when available.
+- Do not fall back to generic acknowledgments when the thread contains details you can use.
+- If the latest message is a follow-up to earlier discussion, carry that forward explicitly.
+- Do not invent commitments, pricing, dates, or capabilities that are not in the thread or notes.
 - Return only valid JSON.
 
-Contact name: {contact_name}
-Company: {company}
-Latest subject: {original_subject}
-Latest email body: {original_body}
-Recent thread summary: {history_summary or "None"}
-Full thread transcript: {thread_transcript or "None"}
-Operator notes: {notes or "None"}
+Context:
+{reply_context}
 """
         response = model.generate_content(prompt)
         result = _safe_json(response.text)
@@ -542,7 +798,7 @@ Operator notes: {notes or "None"}
             contact_name=contact_name,
             original_subject=original_subject,
             original_body=original_body,
-            context="\n".join(part for part in [history_summary, thread_transcript, notes] if part),
+            context=reply_context,
         )
         candidate = {
             "thread_summary": result.get("thread_summary", ""),
@@ -550,15 +806,17 @@ Operator notes: {notes or "None"}
             "suggested_subject": result.get("suggested_subject", fallback_subject),
             "suggested_reply": _normalize_plaintext_email(result.get("suggested_reply", fallback_reply)),
         }
-        if not candidate["suggested_reply"] or _looks_generic(candidate["suggested_reply"], original_body):
+        if not _is_high_quality_reply(candidate["suggested_reply"], original_body, thread_transcript):
             candidate["suggested_reply"] = fallback_reply
-        if heuristic and _looks_generic(candidate["suggested_reply"], original_body):
+        if heuristic and not _is_high_quality_reply(candidate["suggested_reply"], original_body, thread_transcript):
             return heuristic
         if heuristic and not candidate["thread_summary"]:
             candidate["thread_summary"] = heuristic["thread_summary"]
+        if not candidate["thread_summary"]:
+            candidate["thread_summary"] = _fallback_thread_summary(original_body, history_summary)
         return candidate
     except Exception:
-        heuristic = _heuristic_reply(contact_name, original_subject, original_body, history_summary)
+        heuristic = _event_timing_reply(contact_name, original_subject, original_body, history_summary) or _heuristic_reply(contact_name, original_subject, original_body, history_summary)
         if heuristic:
             return heuristic
         fallback_subject = original_subject if original_subject.lower().startswith("re:") else f"Re: {original_subject}"

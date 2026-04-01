@@ -38,12 +38,32 @@ const TOAST_COLORS = {
   warning: "var(--amber)",
 };
 
+function normalizeToastMessage(message) {
+  if (typeof message === "string") {
+    return message;
+  }
+  if (message instanceof Error) {
+    return message.message || "Something went wrong";
+  }
+  if (message && typeof message === "object") {
+    if (typeof message.message === "string") {
+      return message.message;
+    }
+    try {
+      return JSON.stringify(message);
+    } catch {
+      return "Something went wrong";
+    }
+  }
+  return String(message || "Something went wrong");
+}
+
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
 
   const pushToast = useCallback((message, type = "info") => {
     const id = crypto.randomUUID();
-    setToasts((current) => [...current, { id, message, type }]);
+    setToasts((current) => [...current, { id, message: normalizeToastMessage(message), type }]);
     window.setTimeout(() => {
       setToasts((current) => current.filter((toast) => toast.id !== id));
     }, TOAST_DURATION);

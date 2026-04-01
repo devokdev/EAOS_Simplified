@@ -165,6 +165,10 @@ async def ai_reply(email_id: str, data: ReplySuggestionRequest | None = None):
         f"[{email.get('direction', '?')}] {email.get('subject', '')}: {email.get('ai_analysis', {}).get('summary', '') or email.get('body', '')[:140]}"
         for email in history_docs
     )
+    thread_transcript = "\n".join(
+        f"{'You' if email.get('direction') == 'sent' else 'Recipient'} | Subject: {email.get('subject', '')} | Message: {(email.get('body', '') or '').strip()[:500]}"
+        for email in reversed(history_docs)
+    )
     try:
         reply = await suggest_reply_with_context(
             contact_name=contact["name"] if contact else "there",
@@ -172,6 +176,7 @@ async def ai_reply(email_id: str, data: ReplySuggestionRequest | None = None):
             original_subject=doc["subject"],
             original_body=doc["body"],
             history_summary=history_summary,
+            thread_transcript=thread_transcript,
             notes=(data.notes if data else ""),
         )
     except Exception as exc:

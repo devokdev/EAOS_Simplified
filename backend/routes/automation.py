@@ -7,7 +7,7 @@ from starlette.concurrency import run_in_threadpool
 from ..database import get_db
 from ..models.logbook import BulkPreviewRequest, BulkSendRequest, ReplySuggestionRequest, SingleSendRequest
 from ..services.gmail_service import fetch_inbox, send_email
-from ..services.gemini_service import refine_email_copy, suggest_reply_with_context
+from ..services.gemini_service import refine_email_copy, suggest_reply_with_context, summarize_reply_with_context
 from ..services.templates_service import get_template, render_placeholders, wrap_with_template
 
 router = APIRouter(prefix="/api/automation", tags=["automation"])
@@ -225,7 +225,15 @@ async def preview_bulk_email(data: BulkPreviewRequest):
     preview_subject = data.subject
     preview_body = data.body
     if data.improve_content:
-        refined = await refine_email_copy(data.subject, data.body, data.improvement_notes)
+        refined = await refine_email_copy(
+            data.subject,
+            data.body,
+            data.improvement_notes,
+            contact_name=first_contact.get("name", ""),
+            contact_email=first_contact.get("email", ""),
+            dataset_name=dataset.get("name", ""),
+            recipient_count=count,
+        )
         preview_subject = refined["subject"]
         preview_body = refined["body"]
     rendered_subject, rendered_body, rendered_output = _render_contact_content(
@@ -288,7 +296,15 @@ async def send_bulk_email(data: BulkSendRequest):
         source_body = data.body
         thread_key = _resolve_thread_key(data.subject)
         if data.improve_content:
-            refined = await refine_email_copy(data.subject, data.body, data.improvement_notes)
+            refined = await refine_email_copy(
+                data.subject,
+                data.body,
+                data.improvement_notes,
+                contact_name=contact.get("name", ""),
+                contact_email=contact.get("email", ""),
+                dataset_name=dataset.get("name", ""),
+                recipient_count=len(contacts),
+            )
             source_subject = refined["subject"]
             source_body = refined["body"]
             thread_key = _resolve_thread_key(source_subject)
@@ -445,7 +461,12 @@ async def sync_inbox():
                 )
                 pending_reply_text = _build_pending_reply_text([*thread_rows, {"direction": "received", "subject": message.get("subject", ""), "body": cleaned_reply}])
                 latest_pending_text = pending_reply_text or cleaned_reply
-                reply_summary = _fallback_reply_summary(latest_pending_text)
+                thread_history = _build_thread_history([*thread_rows, {"direction": "received", "subject": message.get("subject", ""), "body": cleaned_reply}])
+                reply_summary = await summarize_reply_with_context(
+                    original_subject=message.get("subject", ""),
+                    original_body=latest_pending_text,
+                    history_summary=thread_history,
+                )
                 suggestion_text = _fallback_reply_suggestion(contact.get("name", "") or "there", latest_pending_text)
                 inserted = await conn.fetchrow(
                     """

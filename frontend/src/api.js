@@ -1,6 +1,35 @@
 const API_BASE = "";
 const DEFAULT_TIMEOUT_MS = 15000;
 
+function normalizeApiMessage(data) {
+  if (typeof data === "string") {
+    return data;
+  }
+  if (typeof data?.detail === "string") {
+    return data.detail;
+  }
+  if (typeof data?.message === "string") {
+    return data.message;
+  }
+  if (Array.isArray(data?.detail)) {
+    return data.detail
+      .map((item) => item?.msg || item?.message || JSON.stringify(item))
+      .join("; ");
+  }
+  if (data?.detail && typeof data.detail === "object") {
+    try {
+      return JSON.stringify(data.detail);
+    } catch {
+      return "Request failed";
+    }
+  }
+  try {
+    return JSON.stringify(data);
+  } catch {
+    return "Request failed";
+  }
+}
+
 export async function api(path, options = {}) {
   const controller = new AbortController();
   const { timeoutMs = DEFAULT_TIMEOUT_MS, signal, headers, ...fetchOptions } = options;
@@ -32,10 +61,7 @@ export async function api(path, options = {}) {
   }
 
   if (!response.ok) {
-    const message =
-      typeof data === "string"
-        ? data
-        : data.detail || data.message || "Request failed";
+    const message = normalizeApiMessage(data);
     throw new Error(message);
   }
 

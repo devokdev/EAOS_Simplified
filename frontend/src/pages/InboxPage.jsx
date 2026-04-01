@@ -57,6 +57,7 @@ export function InboxPage() {
   const [syncing, setSyncing] = useState(false);
   const [replying, setReplying] = useState(false);
   const [sending, setSending] = useState(false);
+  const [markingReceived, setMarkingReceived] = useState(false);
   const syncingRef = useRef(false);
   const suggestedIdsRef = useRef(new Set());
 
@@ -95,6 +96,7 @@ export function InboxPage() {
     const looksGeneric =
       !currentSuggestion ||
       currentSuggestion.includes("thanks for your reply. i appreciate it.") ||
+      currentSuggestion.includes("happy to clarify. here is the quick context behind my earlier message.") ||
       currentSuggestion.includes("happy to share more detail") ||
       currentSuggestion.includes("i will get back to you with the details shortly");
     if (looksGeneric && !suggestedIdsRef.current.has(selectedLog.id)) {
@@ -205,6 +207,24 @@ export function InboxPage() {
     }
   }
 
+  async function markReceived() {
+    if (!selectedLog) {
+      return;
+    }
+    setMarkingReceived(true);
+    try {
+      await api(`/api/logs/${selectedLog.id}/mark-received`, {
+        method: "POST",
+      });
+      pushToast("Conversation marked as received", "success");
+      await loadReplies();
+    } catch (error) {
+      pushToast(error.message, "error");
+    } finally {
+      setMarkingReceived(false);
+    }
+  }
+
   if (loading) {
     return <Loader label="Loading replies" />;
   }
@@ -214,9 +234,9 @@ export function InboxPage() {
       <section className="page-hero">
         <div>
           <p className="eyebrow">Replies</p>
-          <h1>See incoming replies clearly and answer them with approval-only suggestions.</h1>
+          <h1>Stay on top of conversations that need a response.</h1>
           <p className="hero-description">
-            This view only shows emails that received replies, so it stays focused and easy to scan.
+            Pending threads surface the latest inbound message, a suggested reply, and a quick path to acknowledge or respond.
           </p>
         </div>
         <div className="hero-actions">
@@ -247,7 +267,7 @@ export function InboxPage() {
                 >
                   <div className="snippet-top">
                     <strong>{log.contact_name || log.recipient_email}</strong>
-                    <StatusPill status={log.needs_attention ? "pending" : "received"} />
+                    <StatusPill status={log.status || (log.needs_attention ? "pending" : "received")} />
                   </div>
                   <span>{log.subject}</span>
                   <small>{formatDateTime(log.last_interaction_time)}</small>
@@ -265,7 +285,7 @@ export function InboxPage() {
               <div className="log-summary-card">
                 <div className="snippet-top">
                   <strong>{selectedLog.subject}</strong>
-                  <StatusPill status={selectedLog.needs_attention ? "pending" : "received"} />
+                  <StatusPill status={selectedLog.status || (selectedLog.needs_attention ? "pending" : "received")} />
                 </div>
                 <div className="detail-block">
                   <span className="detail-label">Quick reply summary</span>
@@ -280,9 +300,16 @@ export function InboxPage() {
               <div className="reply-box">
                 <div className="panel-toolbar">
                   <h3>Suggested response</h3>
-                  <Button icon="brain" onClick={generateSuggestion} variant="secondary">
+                  <div className="action-row">
+                    {selectedLog.status === "pending" ? (
+                      <Button icon="check" onClick={markReceived} variant="ghost" busy={markingReceived}>
+                        {markingReceived ? "Saving..." : "Mark received"}
+                      </Button>
+                    ) : null}
+                    <Button icon="brain" onClick={() => generateSuggestion()} variant="secondary">
                     {replying ? "Generating..." : "Suggest reply"}
-                  </Button>
+                    </Button>
+                  </div>
                 </div>
                 <label className="field">
                   <span>Subject</span>

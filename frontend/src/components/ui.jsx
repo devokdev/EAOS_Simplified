@@ -199,6 +199,7 @@ const STATUS_MAP = {
   warm: "warm",
   neutral: "neutral",
   sent: "sent",
+  received: "received",
 };
 
 export function StatusPill({ status }) {
