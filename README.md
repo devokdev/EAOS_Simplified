@@ -67,7 +67,7 @@ EAOS currently ships with these working flows:
 - Gmail SMTP + IMAP
 - React
 - Vite
-
+ 
 ## Project structure
 
 ```text
