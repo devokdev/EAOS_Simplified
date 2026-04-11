@@ -3,11 +3,11 @@ import { NavLink, useLocation } from "react-router-dom";
 import { Icon } from "./ui";
 
 const NAV_ITEMS = [
-  { to: "/", label: "Overview", short: "Home", icon: "dashboard" },
-  { to: "/datasets", label: "Datasets", short: "Lists", icon: "contacts" },
-  { to: "/templates", label: "Templates", short: "Compose", icon: "compose" },
-  { to: "/logs", label: "Logs", short: "Replies", icon: "inbox" },
-  { to: "/sent-records", label: "Records", short: "Sent", icon: "chart" },
+  { to: "/", label: "Overview", icon: "dashboard" },
+  { to: "/datasets", label: "Datasets", icon: "contacts" },
+  { to: "/templates", label: "Templates", icon: "compose" },
+  { to: "/logs", label: "Logs", icon: "inbox" },
+  { to: "/sent-records", label: "Records", icon: "chart" },
 ];
 
 const SECTION_SUBTITLE = {
@@ -23,6 +23,17 @@ export function AppShell({ children }) {
   const currentLabel = NAV_ITEMS.find((item) => item.to === location.pathname)?.label || "Workspace";
   const currentSubtitle =
     SECTION_SUBTITLE[location.pathname] || "Focused workspace for outreach and reply operations";
+  const [theme, setTheme] = useState(() => {
+    try {
+      const saved = window.localStorage.getItem("eaos-theme");
+      if (saved === "dark" || saved === "light") {
+        return saved;
+      }
+      return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    } catch {
+      return "light";
+    }
+  });
   const [clock, setClock] = useState(() =>
     new Date().toLocaleTimeString([], {
       hour: "2-digit",
@@ -41,6 +52,15 @@ export function AppShell({ children }) {
     }, 30000);
     return () => window.clearInterval(intervalId);
   }, []);
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    try {
+      window.localStorage.setItem("eaos-theme", theme);
+    } catch {
+      // no-op for restricted contexts
+    }
+  }, [theme]);
 
   const currentPathLabel = useMemo(() => {
     if (location.pathname === "/") {
@@ -76,11 +96,14 @@ export function AppShell({ children }) {
               className={({ isActive }) => `nav-link ${isActive ? "nav-link-active" : ""}`.trim()}
               end={item.to === "/"}
               to={item.to}
+              title={item.label}
+              aria-label={item.label}
             >
-              <Icon className="icon-small" name={item.icon} />
-              <div>
-                <span>{item.label}</span>
-                <small>{item.short}</small>
+              <span className="nav-icon-wrap">
+                <Icon className="icon-small" name={item.icon} />
+              </span>
+              <div className="nav-copy">
+                <span className="nav-label">{item.label}</span>
               </div>
             </NavLink>
           ))}
@@ -107,6 +130,18 @@ export function AppShell({ children }) {
             <div className="topbar-meta" aria-label="Workspace status">
               <span className="topbar-chip">{currentPathLabel}</span>
               <span className="topbar-chip topbar-chip-time">{clock}</span>
+              <button
+                className="theme-toggle"
+                type="button"
+                aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+                title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+                onClick={() => setTheme((current) => (current === "dark" ? "light" : "dark"))}
+              >
+                <span className={`theme-toggle-thumb ${theme === "dark" ? "theme-toggle-thumb-dark" : ""}`}>
+                  <Icon className="icon-small" name={theme === "dark" ? "moon" : "sun"} />
+                </span>
+                <span className="theme-toggle-label">{theme === "dark" ? "Dark" : "Light"}</span>
+              </button>
             </div>
           </div>
         </header>

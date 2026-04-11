@@ -386,28 +386,48 @@ export function ComposePage() {
         title="Choose HTML template"
         description="Templates only control the visual design. You can also upload your own HTML."
         size="large"
+        className="template-picker-modal"
       >
-        <div className="form-stack">
-          <div className="template-gallery">
-            {templates.map((template) => (
-              <button
-                key={template.key}
-                type="button"
-                className={`template-card ${selectedTemplateKey === template.key ? "template-card-active" : ""}`}
-                onClick={() => applyTemplate(template.key)}
-              >
-                <strong>{template.name}</strong>
-                <span>{template.description}</span>
-                <div className="template-preview-box" dangerouslySetInnerHTML={{ __html: template.body.replace("{content}", "<p style='margin:0'>Preview content</p>") }} />
-              </button>
-            ))}
+        <div className="template-picker-layout">
+          <div className="template-picker-summary">
+            <div className="template-picker-summary-copy">
+              <strong>{templates.length} templates available</strong>
+              <small>
+                {selectedTemplateKey
+                  ? `Selected: ${templates.find((template) => template.key === selectedTemplateKey)?.name || "Custom"}`
+                  : customTemplateHtml
+                    ? "Selected: Custom HTML template"
+                    : "No template selected"}
+              </small>
+            </div>
+            <span className="topbar-chip">Centered Preview Grid</span>
           </div>
 
-          <label className="field">
-            <span>Upload custom HTML template</span>
-            <input className="input" type="file" accept=".html,.htm,.txt" onChange={onUploadTemplate} />
-            <small className="helper-text">Your custom template should include {"{content}"} where the message body should appear.</small>
-          </label>
+          <div className="template-picker-scroll">
+            <div className="template-gallery template-gallery-modal">
+              {templates.map((template) => (
+                <button
+                  key={template.key}
+                  type="button"
+                  className={`template-card ${selectedTemplateKey === template.key ? "template-card-active" : ""}`}
+                  onClick={() => applyTemplate(template.key)}
+                >
+                  <strong>{template.name}</strong>
+                  <span>{template.description}</span>
+                  <div
+                    className="template-preview-box"
+                    dangerouslySetInnerHTML={{ __html: template.body.replace("{content}", "<p style='margin:0'>Preview content</p>") }}
+                  />
+                </button>
+              ))}
+            </div>
+
+            <label className="field template-upload-field">
+              <span>Upload custom HTML template</span>
+              <input className="input" type="file" accept=".html,.htm,.txt" onChange={onUploadTemplate} />
+              <small className="helper-text">Your custom template should include {"{content}"} where the message body should appear.</small>
+            </label>
+          </div>
 
           <div className="modal-actions">
             <Button type="button" variant="ghost" onClick={clearTemplate}>No template</Button>
