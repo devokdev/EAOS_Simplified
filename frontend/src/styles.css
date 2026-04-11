@@ -1982,6 +1982,150 @@ select.input:focus-visible {
   }
 }
 
+:root[data-theme="dark"] .sidebar,
+:root[data-theme="dark"] .topbar-title,
+:root[data-theme="dark"] .surface,
+:root[data-theme="dark"] .stat-card,
+:root[data-theme="dark"] .metric-card,
+:root[data-theme="dark"] .dataset-card,
+:root[data-theme="dark"] .record-row,
+:root[data-theme="dark"] .conversation-snippet,
+:root[data-theme="dark"] .thread-bubble,
+:root[data-theme="dark"] .reply-box,
+:root[data-theme="dark"] .log-summary-card,
+:root[data-theme="dark"] .line-item,
+:root[data-theme="dark"] .campaign-card,
+:root[data-theme="dark"] .insight-card,
+:root[data-theme="dark"] .modal,
+:root[data-theme="dark"] .toast,
+:root[data-theme="dark"] .status-card,
+:root[data-theme="dark"] .template-upload-field {
+  background: var(--panel-elevated);
+  border-color: var(--line);
+}
+
+:root[data-theme="dark"] .table-row,
+:root[data-theme="dark"] .recipient-row,
+:root[data-theme="dark"] .preview-meta,
+:root[data-theme="dark"] .detail-stat,
+:root[data-theme="dark"] .hero-stat,
+:root[data-theme="dark"] .mini-stat {
+  background: rgba(20, 34, 52, 0.9);
+  border-color: rgba(151, 180, 214, 0.2);
+}
+
+:root[data-theme="dark"] .page-hero,
+:root[data-theme="dark"] .hero-card {
+  background:
+    linear-gradient(145deg, rgba(25, 40, 60, 0.94), rgba(15, 28, 45, 0.86)),
+    radial-gradient(circle at 80% 0%, rgba(108, 168, 255, 0.22), transparent 45%);
+}
+
+:root[data-theme="dark"] .page-hero::before,
+:root[data-theme="dark"] .hero-card::before {
+  background: linear-gradient(120deg, transparent 20%, rgba(167, 208, 255, 0.2) 44%, transparent 70%);
+}
+
+:root[data-theme="dark"] .page-hero::after,
+:root[data-theme="dark"] .hero-card::after {
+  background: radial-gradient(circle, rgba(63, 210, 246, 0.28), transparent 68%);
+}
+
+:root[data-theme="dark"] .button-secondary,
+:root[data-theme="dark"] .button-ghost,
+:root[data-theme="dark"] .icon-button {
+  background: rgba(20, 34, 52, 0.86);
+  border-color: rgba(151, 180, 214, 0.22);
+  color: var(--text-strong);
+}
+
+:root[data-theme="dark"] .button-secondary:hover,
+:root[data-theme="dark"] .button-ghost:hover,
+:root[data-theme="dark"] .icon-button:hover {
+  border-color: rgba(108, 168, 255, 0.42);
+}
+
+:root[data-theme="dark"] .topbar-chip,
+:root[data-theme="dark"] .theme-toggle {
+  background: rgba(18, 31, 47, 0.85);
+  border-color: rgba(151, 180, 214, 0.25);
+  color: var(--muted-strong);
+}
+
+:root[data-theme="dark"] .topbar-chip-time {
+  background: rgba(108, 168, 255, 0.18);
+  border-color: rgba(108, 168, 255, 0.44);
+  color: #d7e6ff;
+}
+
+:root[data-theme="dark"] .nav-link,
+:root[data-theme="dark"] .nav-link:hover,
+:root[data-theme="dark"] .nav-link-active {
+  background: rgba(19, 33, 50, 0.78);
+  border-color: rgba(151, 180, 214, 0.16);
+}
+
+:root[data-theme="dark"] .nav-link-active {
+  border-color: rgba(108, 168, 255, 0.34);
+}
+
+:root[data-theme="dark"] .nav-label,
+:root[data-theme="dark"] .nav-link span,
+:root[data-theme="dark"] .topbar-section {
+  color: var(--text-strong);
+}
+
+:root[data-theme="dark"] .table-row:hover {
+  background: rgba(37, 55, 77, 0.88);
+}
+
+:root[data-theme="dark"] .template-card,
+:root[data-theme="dark"] .html-preview,
+:root[data-theme="dark"] .plain-preview,
+:root[data-theme="dark"] .template-preview-box,
+:root[data-theme="dark"] .email-thread-card,
+:root[data-theme="dark"] .input,
+:root[data-theme="dark"] .textarea {
+  background: rgba(17, 30, 46, 0.92);
+  border-color: rgba(151, 180, 214, 0.22);
+  color: var(--text);
+}
+
+:root[data-theme="dark"] .template-card-active,
+:root[data-theme="dark"] .dataset-card-active,
+:root[data-theme="dark"] .record-row-active,
+:root[data-theme="dark"] .email-thread-card-active {
+  background: linear-gradient(180deg, rgba(23, 39, 59, 0.98), rgba(27, 49, 76, 0.96));
+  border-color: rgba(108, 168, 255, 0.38);
+}
+
+:root[data-theme="dark"] .chip,
+:root[data-theme="dark"] .static-chip,
+:root[data-theme="dark"] .accent-chip,
+:root[data-theme="dark"] .message-direction {
+  background: rgba(20, 34, 52, 0.82);
+  border-color: rgba(151, 180, 214, 0.24);
+  color: var(--muted-strong);
+}
+
+:root[data-theme="dark"] .chip-active {
+  background: rgba(108, 168, 255, 0.2);
+  border-color: rgba(108, 168, 255, 0.44);
+  color: #dce9ff;
+}
+
+:root[data-theme="dark"] .modal-overlay {
+  background: rgba(3, 8, 18, 0.62);
+  backdrop-filter: blur(10px);
+}
+
+:root[data-theme="dark"] .shell-grid {
+  opacity: 0.1;
+  background-image:
+    linear-gradient(rgba(151, 180, 214, 0.18) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(151, 180, 214, 0.18) 1px, transparent 1px);
+}
+
 @media (max-width: 1250px) {
   .compose-layout-wide,
   .records-layout,
