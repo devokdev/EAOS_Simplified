@@ -1680,6 +1680,48 @@ select.input:focus-visible {
   background: rgba(25, 102, 255, 0.12);
 }
 
+.theme-toggle {
+  border: 1px solid rgba(17, 34, 56, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.86);
+  padding: 4px 11px 4px 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted-strong);
+  transition: border-color 180ms ease, background-color 180ms ease, transform 180ms ease;
+}
+
+.theme-toggle:hover {
+  transform: translateY(-1px);
+  border-color: rgba(25, 102, 255, 0.28);
+}
+
+.theme-toggle-label {
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.theme-toggle-thumb {
+  width: 25px;
+  height: 25px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(145deg, #fff0c9, #ffdb74);
+  color: #9a6200;
+  box-shadow: 0 4px 10px rgba(247, 180, 22, 0.25);
+  transition: transform 220ms ease, background-color 220ms ease, color 220ms ease;
+}
+
+.theme-toggle-thumb-dark {
+  background: linear-gradient(145deg, #3f5b87, #1f3152);
+  color: #d8e6ff;
+  box-shadow: 0 4px 10px rgba(14, 29, 56, 0.42);
+  transform: rotate(-8deg);
+}
+
 .route-stage {
   animation: routeIn 420ms ease both;
 }
