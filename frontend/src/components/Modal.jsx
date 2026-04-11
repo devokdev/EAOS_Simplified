@@ -47,14 +47,13 @@ export function Modal({ open, title, description, children, onClose, size = "med
           <div>
             <p className="eyebrow">Configuration</p>
             <h3>{title}</h3>
-            {description ? <p className="muted" style={{ marginTop: 4 }}>{description}</p> : null}
+            {description ? <p className="muted modal-description">{description}</p> : null}
           </div>
           <button
             className="icon-button"
             onClick={onClose}
             type="button"
             aria-label="Close modal"
-            style={{ flexShrink: 0 }}
           >
             <svg
               width="16"
@@ -71,7 +70,7 @@ export function Modal({ open, title, description, children, onClose, size = "med
             </svg>
           </button>
         </div>
-        <div style={{ padding: "0 24px 4px" }}>
+        <div className="modal-content">
           {children}
         </div>
       </div>

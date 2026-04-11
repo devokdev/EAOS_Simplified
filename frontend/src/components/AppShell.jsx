@@ -9,9 +9,19 @@ const NAV_ITEMS = [
   { to: "/sent-records", label: "Records", short: "Sent", icon: "chart" },
 ];
 
+const SECTION_SUBTITLE = {
+  "/": "Monitor delivery, replies, and pending actions in one command center",
+  "/datasets": "Build clean audience lists for dependable outbound execution",
+  "/templates": "Compose, preview, and deliver personalized emails at scale",
+  "/logs": "Review inbound replies, approve drafts, and respond faster",
+  "/sent-records": "Track every conversation thread and reply status over time",
+};
+
 export function AppShell({ children }) {
   const location = useLocation();
   const currentLabel = NAV_ITEMS.find((item) => item.to === location.pathname)?.label || "Workspace";
+  const currentSubtitle =
+    SECTION_SUBTITLE[location.pathname] || "Focused workspace for outreach and reply operations";
 
   return (
     <div className="shell">
@@ -45,6 +55,7 @@ export function AppShell({ children }) {
 
         <div className="sidebar-footer">
           <div className="status-card subtle-card">
+            <span className="status-dot" />
             <div>
               <strong>Auto sync active</strong>
               <small>Replies are monitored in the background.</small>
@@ -57,7 +68,7 @@ export function AppShell({ children }) {
         <header className="topbar">
           <div className="topbar-title">
             <span className="topbar-section">{currentLabel}</span>
-            <small>Focused workspace for outreach and reply operations</small>
+            <small>{currentSubtitle}</small>
           </div>
         </header>
         <main className="page-frame">{children}</main>
