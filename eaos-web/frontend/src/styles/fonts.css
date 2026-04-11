@@ -1,0 +1,32 @@
+/* ─── Google Fonts Import ──────────────────────
+   Outfit: Premium geometric display font for headings
+   Inter:  Clean & highly legible body font
+   JetBrains Mono: Crisp monospace for code snippets
+   ─────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+/* ─── CSS Custom Properties for Typography ───── */
+:root {
+	--font-display: 'Outfit', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+	--font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+	--font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+}
+
+/* ─── Global Font Defaults ──────────────────── */
+html, body {
+	font-family: var(--font-body);
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+	text-rendering: optimizeLegibility;
+	font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';   /* Inter stylistic alternates */
+}
+
+/* ─── Headings use Outfit display font ──────── */
+h1, h2, h3, h4, h5, h6 {
+	font-family: var(--font-display);
+}
+
+/* ─── Monospace elements ────────────────────── */
+code, kbd, pre, samp, .font-mono {
+	font-family: var(--font-mono);
+}
