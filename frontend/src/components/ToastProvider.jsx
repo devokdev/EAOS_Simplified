@@ -92,21 +92,12 @@ export function ToastProvider({ children }) {
             >
               {TOAST_ICONS[toast.type] || TOAST_ICONS.info}
             </div>
-            <span style={{ flex: 1, fontSize: "0.875rem" }}>{toast.message}</span>
+            <span className="toast-message">{toast.message}</span>
             <button
               type="button"
+              className="toast-dismiss"
               aria-label="Dismiss"
               onClick={() => dismissToast(toast.id)}
-              style={{
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                color: "var(--muted)",
-                padding: "0 0 0 8px",
-                display: "flex",
-                alignItems: "center",
-                flexShrink: 0,
-              }}
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                 <path d="M18 6 6 18M6 6l12 12" />

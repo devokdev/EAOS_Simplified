@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { api } from "./api";
 import { AppShell } from "./components/AppShell";
 import { useToast } from "./components/ToastProvider";
@@ -45,18 +45,22 @@ function BackgroundSync() {
 }
 
 export default function App() {
+  const location = useLocation();
+
   return (
     <>
       <BackgroundSync />
       <AppShell>
-        <Routes>
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/datasets" element={<ContactsPage />} />
-          <Route path="/templates" element={<ComposePage />} />
-          <Route path="/logs" element={<InboxPage />} />
-          <Route path="/sent-records" element={<SentRecordsPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        <div className="route-stage" key={location.pathname}>
+          <Routes location={location}>
+            <Route path="/" element={<DashboardPage />} />
+            <Route path="/datasets" element={<ContactsPage />} />
+            <Route path="/templates" element={<ComposePage />} />
+            <Route path="/logs" element={<InboxPage />} />
+            <Route path="/sent-records" element={<SentRecordsPage />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </div>
       </AppShell>
     </>
   );
