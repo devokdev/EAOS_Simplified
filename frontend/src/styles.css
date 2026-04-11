@@ -973,6 +973,11 @@ select.input:focus-visible {
   gap: 12px;
 }
 
+.template-gallery-modal {
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 14px;
+}
+
 .template-card {
   text-align: left;
   border-radius: 16px;
@@ -1269,7 +1274,7 @@ select.input:focus-visible {
 }
 
 .modal-large {
-  width: min(980px, 100%);
+  width: min(1120px, 100%);
 }
 
 .modal-header {
@@ -1293,6 +1298,58 @@ select.input:focus-visible {
   justify-content: flex-end;
   gap: 10px;
   padding: 16px 0 20px;
+}
+
+.template-picker-modal {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.template-picker-modal .modal-content {
+  padding-bottom: 0;
+}
+
+.template-picker-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+}
+
+.template-picker-summary {
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--panel-elevated);
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.template-picker-summary-copy strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.template-picker-summary-copy small {
+  color: var(--muted);
+}
+
+.template-picker-scroll {
+  overflow: auto;
+  max-height: min(60vh, 620px);
+  padding-right: 4px;
+}
+
+.template-upload-field {
+  margin-top: 14px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  padding: 12px;
 }
 
 .toast-stack {
