@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from .database import connect_db, disconnect_db
-from .routes import automation, dashboard_v2, datasets, logbook, templates
+from .routes import automation, dashboard_v2, datasets, logbook, templates, settings
 
 
 @asynccontextmanager
@@ -34,6 +34,7 @@ app.include_router(templates.router)
 app.include_router(automation.router)
 app.include_router(logbook.router)
 app.include_router(dashboard_v2.router)
+app.include_router(settings.router)
 
 
 @app.get("/health")

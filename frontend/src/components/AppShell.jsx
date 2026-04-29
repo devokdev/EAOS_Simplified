@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
+import { initials } from "../api";
+import { SettingsModal } from "./SettingsModal";
 import { Icon } from "./ui";
 
 const NAV_ITEMS = [
@@ -34,6 +36,7 @@ export function AppShell({ children }) {
       return "light";
     }
   });
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [clock, setClock] = useState(() =>
     new Date().toLocaleTimeString([], {
       hour: "2-digit",
@@ -110,6 +113,24 @@ export function AppShell({ children }) {
         </nav>
 
         <div className="sidebar-footer">
+          {/* Profile card */}
+          <button
+            type="button"
+            className="profile-card"
+            onClick={() => setSettingsOpen(true)}
+            aria-label="Open settings"
+            title="Settings"
+          >
+            <div className="profile-avatar">
+              <span className="profile-initials">YY</span>
+            </div>
+            <div className="profile-card-copy">
+              <strong className="profile-name">Yash Yadav</strong>
+              <span className="profile-role">Workspace admin</span>
+            </div>
+            <Icon name="settings" className="icon-small profile-settings-icon" />
+          </button>
+
           <div className="status-card subtle-card">
             <span className="status-dot" />
             <div>
@@ -142,11 +163,24 @@ export function AppShell({ children }) {
                 </span>
                 <span className="theme-toggle-label">{theme === "dark" ? "Dark" : "Light"}</span>
               </button>
+              {/* Profile / settings button in topbar */}
+              <button
+                type="button"
+                className="topbar-profile-btn"
+                onClick={() => setSettingsOpen(true)}
+                aria-label="Open settings"
+                title="Settings"
+              >
+                <span className="topbar-avatar">YY</span>
+                <Icon name="settings" className="icon-small topbar-settings-chevron" />
+              </button>
             </div>
           </div>
         </header>
         <main className="page-frame">{children}</main>
       </div>
+
+      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
 }
