@@ -31,14 +31,31 @@ EXE_PATH = os.path.join(DIST_DIR, "EAOS.exe")
 ENV_SRC = os.path.join(ROOT, ".env")
 ENV_DST = os.path.join(DIST_DIR, ".env")
 
+IS_WINDOWS = sys.platform == "win32"
 
-def run(cmd: list[str], cwd: str = ROOT) -> None:
-    """Run a subprocess command and raise on failure."""
-    print(f"\n▶  {' '.join(cmd)}  (cwd={cwd})\n{'─'*60}")
-    result = subprocess.run(cmd, cwd=cwd)
+
+def run(cmd: list[str], cwd: str = ROOT, shell: bool = False) -> None:
+    """Run a subprocess command and exit on failure.
+
+    On Windows, npm/npx are .cmd wrappers and require shell=True.
+    Pass shell=True explicitly for any such commands.
+    """
+    display = " ".join(cmd) if isinstance(cmd, list) else cmd
+    print(f"\n▶  {display}  (cwd={cwd})\n{'─'*60}")
+    result = subprocess.run(cmd, cwd=cwd, shell=shell)
     if result.returncode != 0:
         print(f"\n✗ Command failed with exit code {result.returncode}")
         sys.exit(result.returncode)
+
+
+def npm(args: list[str], cwd: str = ROOT) -> None:
+    """Run an npm command, using shell=True on Windows so .cmd wrappers are found."""
+    if IS_WINDOWS:
+        # On Windows join as a string and pass to cmd /c so npm.cmd is resolved
+        cmd_str = "npm " + " ".join(args)
+        run(cmd_str, cwd=cwd, shell=True)
+    else:
+        run(["npm"] + args, cwd=cwd)
 
 
 def main() -> None:
@@ -53,14 +70,15 @@ def main() -> None:
 
     # ── Step 2 & 3: Frontend ─────────────────────────────────────────────────
     print("\n[2/4] Installing Node dependencies…")
-    run(["npm", "install"], cwd=FRONTEND_DIR)
+    npm(["install"], cwd=FRONTEND_DIR)
 
     print("\n[3/4] Building Vite frontend…")
-    run(["npm", "run", "build"], cwd=FRONTEND_DIR)
+    npm(["run", "build"], cwd=FRONTEND_DIR)
 
     if not os.path.isdir(FRONTEND_DIST):
         print(f"\n✗ Frontend build did not produce {FRONTEND_DIST}")
         sys.exit(1)
+    print(f"   ✓ Frontend built → {FRONTEND_DIST}")
 
     # ── Step 4: PyInstaller ──────────────────────────────────────────────────
     print("\n[4/4] Packaging with PyInstaller…")
