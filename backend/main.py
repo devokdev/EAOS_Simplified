@@ -42,8 +42,10 @@ async def health():
     return {"status": "ok", "service": "EAOS"}
 
 
-frontend_dir = os.path.join(os.path.dirname(__file__), "..", "frontend")
-frontend_dist = os.path.join(frontend_dir, "dist")
+# Determine frontend dist path — env var wins (set by frozen exe launcher)
+frontend_dist = os.environ.get("EAOS_FRONTEND_DIST") or os.path.join(
+    os.path.dirname(__file__), "..", "frontend", "dist"
+)
 if os.path.exists(frontend_dist):
     assets_dir = os.path.join(frontend_dist, "assets")
     if os.path.exists(assets_dir):
