@@ -1,102 +1,264 @@
-# EAOS
+# EAOS Simplified
 
-EAOS is an AI-assisted email operations workspace for teams that send outbound emails, track replies, and want approval-first automation instead of blind autoresponders.
+AI-assisted Email Operations System for dataset-driven outreach, inbox sync, and approval-first replies.
 
-It combines:
-- dataset-based contact management
-- AI-assisted email writing before send
-- Gmail inbox sync for reply detection
-- thread-aware reply suggestions
-- a sent-records view with reply counts
+## 1) Executive Summary
 
-## Why this project is useful
+EAOS Simplified is a full-stack outreach workspace that lets teams:
 
-EAOS is built for real workflows where teams send the first email, wait for replies, and need fast follow-up without losing context.
+- import contact datasets from CSV
+- generate/refine outbound emails with Gemini
+- send batch emails through Gmail SMTP
+- sync inbox replies from Gmail IMAP
+- generate thread-aware reply suggestions
+- resolve pending conversations from a single queue
+- track sent-thread status with lightweight CRM-like records
 
-### Real-world use cases
+## 2) Why This Project Matters
 
-1. Startup founder outreach
-   Upload an investor, customer, or partner list, write a rough email like `hi {name}, wanted to show you what we are building`, let AI turn it into a polished message, send in batches, then review replies in one queue.
+| Problem in real workflows | EAOS response |
+|---|---|
+| Outreach tools send fast but lose reply context | Thread-keyed reply tracking + pending queue |
+| Draft quality is inconsistent across users | AI-assisted preview/refinement before send |
+| Teams miss unanswered replies | `needs_attention` based inbox triage |
+| CRM tools can be heavy for simple campaigns | Lean dataset + records model |
 
-2. College fest and event invitations
-   Import a guest list, write a short note like `invite {name} to annual fest`, generate a cleaner full email with subject and placeholders preserved, and track who replied and how many times.
+## 3) Product Scope (Current Build)
 
-3. Agency lead follow-up
-   Send cold outreach to leads from a CSV, then use the replies page to see open conversations only. Once you answer a lead, that thread disappears from the pending queue until they reply again.
+### Included in the running app
 
-4. Alumni or placement cell communication
-   Send internship, speaker-session, or mentorship invites to a curated dataset. When someone replies with a short message like `interested`, `what is the timing?`, or `haha sure`, EAOS captures it and generates a context-aware draft.
+| Module | Status | Notes |
+|---|---|---|
+| Dashboard | Active | `/api/dashboard/overview` aggregation |
+| Datasets + Contacts | Active | CRUD + CSV upload |
+| Templates/Compose | Active | Preview + batch send + optional HTML template |
+| Logs/Replies | Active | Inbox sync + AI suggestion + approve/send |
+| Sent Records | Active | Thread rollup by status/reply count |
 
-5. Internal ops or community management
-   Use the sent records tab to keep a clean view of every sent thread, total replies received, and pending inbound messages that still need attention.
+### Present in repo but not mounted in current `backend/main.py`
 
-## Current product status
+| Module | Status | Note |
+|---|---|---|
+| `contacts.py`, `emails.py`, `campaigns.py`, `dashboard.py` routes | Legacy/experimental | Not included by `app.include_router(...)` in this simplified runtime |
+| `eaos-web/frontend` | Separate frontend package | Appears to be an alternate marketing/presentation frontend |
 
-EAOS currently ships with these working flows:
+## 4) System Architecture
 
-- `Overview`
-  Shows dataset count, contact count, sent volume, reply volume, response rate, and recent activity.
+```mermaid
+flowchart LR
+    U[Operator in React UI] --> F[Frontend - Vite React SPA]
+    F -->|REST| B[FastAPI Backend]
 
-- `Datasets`
-  Import CSV contacts, browse list members, remove selected entries, or wipe datasets fully.
+    subgraph Core Services
+      B --> A1[Automation Routes]
+      B --> A2[Datasets Routes]
+      B --> A3[Logs Routes]
+      B --> A4[Templates Routes]
+      B --> A5[Dashboard Routes]
+    end
 
-- `Templates / Compose`
-  Write the email body in rough form, optionally enable AI, preview the final subject and body, and send to all or selected contacts from a dataset.
+    A1 --> G1[Gemini Service]
+    A1 --> M1[Gmail SMTP Service]
+    A1 --> M2[Gmail IMAP Service]
 
-- `Logs / Replies`
-  Sync Gmail inbox replies from known contacts, show unresolved reply threads, read reply content, generate a suggested response, and send approval-first replies.
+    A2 --> DB[(PostgreSQL via asyncpg)]
+    A3 --> DB
+    A4 --> DB
+    A5 --> DB
+    A1 --> DB
 
-- `Records / Sent`
-  View sent conversations with total reply count and pending reply count per thread.
-
-## What makes EAOS impressive
-
-- AI can turn rough notes into a send-ready email before preview.
-- Subject is optional; EAOS can generate it from intent.
-- Placeholders like `{name}` and `{email}` are preserved during AI refinement.
-- Reply suggestions use the conversation thread instead of just one isolated message.
-- The inbox queue only shows threads that still need action.
-- Once you reply, the thread leaves the pending queue until the recipient replies again.
-- Sent-thread records give you a lightweight CRM-style view without needing a full CRM.
-
-## Tech stack
-
-- FastAPI
-- PostgreSQL / Supabase Postgres
-- Google Gemini
-- Gmail SMTP + IMAP
-- React
-- Vite
- 
-## Project structure
-
-```text
-backend/
-  main.py
-  routes/
-    automation.py
-    dashboard_v2.py
-    datasets.py
-    logbook.py
-    templates.py
-  services/
-    gemini_service.py
-    gmail_service.py
-    templates_service.py
-
-frontend/
-  src/
-    pages/
-      DashboardPage.jsx
-      ContactsPage.jsx
-      ComposePage.jsx
-      InboxPage.jsx
-      SentRecordsPage.jsx
+    G1 -->|LLM| X[Gemini 2.5 Flash]
+    M1 -->|send| Y[Gmail SMTP]
+    M2 -->|fetch| Z[Gmail IMAP]
 ```
 
-## Environment variables
+## 5) End-to-End Flow Diagrams
 
-Create a `.env` file in the project root:
+### 5.1 Outbound preview + send
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant UI as Frontend
+    participant API as FastAPI
+    participant AI as Gemini
+    participant Mail as Gmail SMTP
+    participant DB as Postgres
+
+    User->>UI: Write body + placeholders + options
+    UI->>API: POST /api/automation/preview
+    API->>AI: refine_email_copy(...)
+    AI-->>API: subject + body
+    API-->>UI: rendered preview
+
+    User->>UI: Approve & send
+    UI->>API: POST /api/automation/send
+    loop per contact
+        API->>AI: optional refine
+        API->>Mail: send_email(...)
+        API->>DB: INSERT email_logs + activity_logs
+    end
+    API-->>UI: sent/failed totals
+```
+
+### 5.2 Inbox sync + pending queue
+
+```mermaid
+sequenceDiagram
+    participant Cron as UI Poll/Manual Trigger
+    participant API as FastAPI
+    participant IMAP as Gmail IMAP
+    participant AI as Gemini
+    participant DB as Postgres
+
+    Cron->>API: POST /api/automation/sync-inbox
+    API->>IMAP: fetch_inbox(limit, since_days)
+    IMAP-->>API: recent messages
+    loop matched sender + thread
+      API->>DB: check dedupe + sent anchor
+      API->>AI: summarize_reply_with_context(...)
+      API->>DB: INSERT received log
+      API->>DB: UPDATE sent anchor needs_attention=true
+    end
+    API-->>Cron: checked/matched/new_replies/awaiting_replies
+```
+
+### 5.3 Approval-first reply cycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> Sent
+    Sent --> Pending : inbound reply matched
+    Pending --> Suggested : POST /reply-suggestion
+    Suggested --> SentReply : POST /send-single-reply
+    Suggested --> Received : mark-received
+    SentReply --> [*]
+    Received --> [*]
+```
+
+## 6) Data Model
+
+### 6.1 Entity Relationship Diagram
+
+```mermaid
+erDiagram
+    DATASETS ||--o{ DATASET_CONTACTS : contains
+    DATASETS ||--o{ EMAIL_LOGS : scopes
+    DATASET_CONTACTS ||--o{ EMAIL_LOGS : exchanges
+    EMAIL_LOGS ||--o{ ACTIVITY_LOGS : generates
+
+    DATASETS {
+        uuid id PK
+        text name
+        text source_filename
+        timestamp created_at
+    }
+
+    DATASET_CONTACTS {
+        uuid id PK
+        uuid dataset_id FK
+        text name
+        text email
+        timestamp created_at
+    }
+
+    EMAIL_LOGS {
+        uuid id PK
+        uuid dataset_id FK
+        uuid contact_id FK
+        text direction
+        text subject
+        text body
+        text status
+        text thread_key
+        bool needs_attention
+        timestamp created_at
+        timestamp last_interaction_at
+    }
+
+    ACTIVITY_LOGS {
+        uuid id PK
+        text action
+        text recipient
+        text status
+        jsonb details
+        timestamp timestamp
+    }
+```
+
+### 6.2 Thread logic summary
+
+| Field | Purpose |
+|---|---|
+| `thread_key` | Normalized subject/thread identity |
+| `direction` | `sent` or `received` |
+| `needs_attention` | Triage bit for pending response |
+| `last_interaction_at` | Sorting and recency anchor |
+| `reply_summary` | Human-readable latest context |
+| `reply_suggestion` | Draft produced by AI for operator approval |
+
+## 7) API Surface (Active Runtime)
+
+| Method | Route | Purpose |
+|---|---|---|
+| `GET` | `/health` | Service liveness |
+| `GET` | `/api/dashboard/overview` | Aggregated KPI + recent events |
+| `GET` | `/api/datasets/` | List datasets |
+| `POST` | `/api/datasets/` | Create dataset |
+| `POST` | `/api/datasets/upload` | CSV import into dataset |
+| `GET` | `/api/datasets/{dataset_id}` | Get single dataset |
+| `DELETE` | `/api/datasets/{dataset_id}` | Delete dataset |
+| `GET` | `/api/datasets/{dataset_id}/contacts` | List contacts in dataset |
+| `POST` | `/api/datasets/{dataset_id}/contacts` | Add contact |
+| `PUT` | `/api/datasets/contacts/{contact_id}` | Update contact |
+| `DELETE` | `/api/datasets/contacts/{contact_id}` | Delete contact |
+| `GET` | `/api/templates/` | List built-in HTML templates |
+| `POST` | `/api/automation/preview` | Generate/refine and preview outbound message |
+| `POST` | `/api/automation/send` | Batch send outbound messages |
+| `POST` | `/api/automation/sync-inbox` | Pull inbox and match replies |
+| `POST` | `/api/automation/reply-suggestion` | Generate thread-aware reply draft |
+| `POST` | `/api/automation/send-single-reply` | Approve and send reply |
+| `GET` | `/api/logs/` | Pending reply thread listing |
+| `GET` | `/api/logs/sent-records` | Sent thread rollup view |
+| `POST` | `/api/logs/{log_id}/mark-received` | Mark thread resolved |
+| `GET` | `/api/logs/{log_id}/thread` | Fetch full thread timeline |
+
+## 8) Frontend Route Map
+
+| Route | Screen | Purpose |
+|---|---|---|
+| `/` | Dashboard | KPI and recent activity |
+| `/datasets` | ContactsPage | Dataset/contact management |
+| `/templates` | ComposePage | Preview/refine/send flow |
+| `/logs` | InboxPage | Pending replies + AI draft |
+| `/sent-records` | SentRecordsPage | Thread analytics and status |
+
+## 9) Tech Stack
+
+| Layer | Tech |
+|---|---|
+| API | FastAPI |
+| Runtime | Python 3.10+ |
+| DB Driver | asyncpg |
+| Database | PostgreSQL (Supabase-compatible) |
+| AI | Google Gemini (`gemini-2.5-flash`) |
+| Mail Send | Gmail SMTP |
+| Mail Fetch | Gmail IMAP |
+| Frontend | React 18 + Vite |
+
+## 10) Environment Configuration
+
+Create `.env` in project root.
+
+| Variable | Required | Description |
+|---|---|---|
+| `DATABASE_URL` | Yes | Postgres connection string |
+| `GEMINI_KEY_1` | Yes (for AI features) | Primary Gemini API key |
+| `GEMINI_KEY_2` | Optional | Secondary key for round-robin |
+| `GMAIL_USER` | Yes (for mail features) | Gmail sender account |
+| `GMAIL_APP_PASSWORD` | Yes (for mail features) | App password (not account password) |
+
+Example:
 
 ```env
 DATABASE_URL=postgresql://username:password@host:5432/postgres
@@ -106,26 +268,12 @@ GMAIL_USER=your_email@gmail.com
 GMAIL_APP_PASSWORD=your_gmail_app_password
 ```
 
-## Setup
+## 11) Local Setup
 
 ### Backend
 
 ```powershell
 py -3 -m pip install -r requirements.txt
-```
-
-### Frontend
-
-```powershell
-cd frontend
-npm install
-```
-
-## Run locally
-
-### Backend
-
-```powershell
 py -3 -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
@@ -133,77 +281,144 @@ py -3 -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
 
 ```powershell
 cd frontend
+npm install
 npm run dev
 ```
 
-Open:
+### Access
+
+- Frontend: `http://127.0.0.1:5173`
+- Backend health: `http://127.0.0.1:8000/health`
+
+## 12) Operational Behavior and Constraints
+
+| Area | Current behavior |
+|---|---|
+| Sending | Synchronous per contact loop; batch pause supported |
+| Inbox sync | Single-flight lock to prevent overlapping runs |
+| Dedupe | `provider_message_id` fallback + thread/body checks |
+| Matching | Only replies from known dataset contacts are processed |
+| Auth | No user authentication in current simplified build |
+| CORS | Wide open (`allow_origins=["*"]`) |
+
+## 13) Quality Notes
+
+### Strengths
+
+- clear data model for thread attention status
+- pragmatic AI fallback heuristics when model output is weak
+- approval-first reply loop reduces unintended auto-send risk
+- useful rollup analytics from minimal schema
+
+### Improvement opportunities
+
+- add background workers (queue) for campaign-scale send/sync
+- add auth + role model + secrets management UI
+- harden mail parsing for richer MIME/attachment handling
+- add automated tests for route-level workflows
+- tighten CORS and production security posture
+
+## 14) KPI Graphs (Formula-Level)
+
+### 14.1 Core metric equations
+
+| KPI | Formula |
+|---|---|
+| Response Rate | `received_count / successful_sent_count * 100` |
+| Pending Threads | `count(received where needs_attention=true and latest per thread)` |
+| Send Success Rate | `sent_ok / total_send_attempts * 100` |
+
+### 14.2 Pipeline graph (conceptual)
 
 ```text
-http://127.0.0.1:5173
+Contacts Imported  [####################] 100%
+Preview Approved   [###############-----]  75%
+Sent Successfully  [#############-------]  65%
+Replies Received   [######--------------]  30%
+Pending to Resolve [###-----------------]  15%
 ```
 
-## Main flows
+### 14.3 Effort distribution chart (conceptual)
 
-### 1. Send a polished email from rough input
+```mermaid
+pie showData
+    title Engineering Weight Distribution
+    "Backend Workflow Logic" : 40
+    "Frontend Product UX" : 28
+    "Integration (Gmail + Gemini)" : 22
+    "Schema + Reporting Layer" : 10
+```
 
-1. Open `Templates`.
-2. Choose a dataset.
-3. Write a rough body like `hi {name}, invite you to our product demo next week`.
-4. Enable `Use AI to refine or write the full email before preview`.
-5. Click `Preview`.
-6. Review the generated subject and body.
-7. Click `Send after review`.
+## 15) Suggested Production Hardening Roadmap
 
-### 2. Process replies without losing context
+```mermaid
+gantt
+    title EAOS Simplified Hardening Plan
+    dateFormat  YYYY-MM-DD
+    section Security
+    Auth + RBAC + Tenant model      :a1, 2026-05-10, 14d
+    Secrets management UI            :a2, after a1, 7d
+    CORS and API policy hardening    :a3, after a1, 5d
 
-1. Open `Logs`.
-2. Let inbox sync run or click `Check inbox`.
-3. Select a reply thread.
-4. Review the captured reply content.
-5. Click `Suggest reply`.
-6. Approve or edit the draft.
-7. Click `Approve and send`.
+    section Scalability
+    Queue for outbound send          :b1, 2026-05-12, 12d
+    Async inbox sync jobs            :b2, after b1, 10d
 
-### 3. Track sent threads and reply counts
+    section Intelligence
+    Reply attribution improvements   :c1, 2026-05-20, 10d
+    Campaign conversion inference    :c2, after c1, 10d
 
-1. Open `Records`.
-2. Review each sent conversation.
-3. See total replies and pending replies per thread.
-4. Use it as a lightweight outreach tracker.
+    section Reliability
+    Integration test suite           :d1, 2026-05-08, 12d
+    Observability + alerts           :d2, after d1, 7d
+```
 
-## Key API routes
-
-- `GET /health`
-- `GET /api/dashboard/overview`
-- `GET /api/datasets/`
-- `GET /api/datasets/{dataset_id}/contacts`
-- `DELETE /api/datasets/`
-- `GET /api/templates/`
-- `POST /api/automation/preview`
-- `POST /api/automation/send`
-- `POST /api/automation/sync-inbox`
-- `POST /api/automation/reply-suggestion`
-- `POST /api/automation/send-single-reply`
-- `GET /api/logs/?filter_by=replied`
-- `GET /api/logs/sent-records`
-
-## Notes
-
-- Gmail inbox sync only tracks replies from contacts that already exist in your datasets.
-- Replies are matched against sent threads using normalized thread keys and stored in the database.
-- The reply queue is approval-first, not automatic sending.
-- The sent records page is useful for outreach tracking even if you do not use a CRM.
-
-## Health check
-
-If the backend is running correctly:
+## 16) Repository Structure
 
 ```text
-http://127.0.0.1:8000/health
+EAOS_Simplified/
+  backend/
+    main.py
+    config.py
+    database.py
+    routes/
+      automation.py
+      datasets.py
+      dashboard_v2.py
+      logbook.py
+      templates.py
+    services/
+      gemini_service.py
+      gmail_service.py
+      templates_service.py
+  frontend/
+    src/
+      App.jsx
+      api.js
+      pages/
+        DashboardPage.jsx
+        ContactsPage.jsx
+        ComposePage.jsx
+        InboxPage.jsx
+        SentRecordsPage.jsx
+  prd.md
+  requirements.txt
+  run.py
 ```
 
-Expected response:
+## 17) Quick Demo Script (5-7 min)
 
-```json
-{"status":"ok","service":"EAOS"}
-```
+1. Create dataset and upload CSV.
+2. Open Compose, draft rough copy with placeholders, enable AI improve.
+3. Preview and send to selected subset.
+4. Trigger inbox sync and show pending reply detection.
+5. Generate reply suggestion and approve send.
+6. Open Sent Records to show thread status and reply counters.
+
+## 18) License / Academic Use
+
+Use this project ethically with accurate attribution, transparent claims, and reproducible demos.
+
+---
+
+For a viva-ready speaking script and slide narrative, see `presentation.md`.
