@@ -421,4 +421,3 @@ Use this project ethically with accurate attribution, transparent claims, and re
 
 ---
 
-For a viva-ready speaking script and slide narrative, see `presentation.md`.
